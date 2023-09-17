@@ -1,0 +1,28 @@
+# Declaración de videos
+video my_video1 = "C://Documents/IntroVideo.mpeg4"
+video padding = "C://Documents/Transition.mpeg4"
+video another_video = "C://Documents/FunnyMemes.mpeg4"
+video my_video2 = my_video1[00:00:15::00:00:40]
+
+# Cortar una parte específica de my_video1
+video cut_my_video1 = my_video1[00:01:30::00:02:00]
+
+# Repetir my_video2 3 veces
+video repeated_my_video2 = my_video2 * 3
+# Composición de operaciones para el video
+video final_video = (cut_my_video1 + repeated_my_video2 + another_video) .x 2
+
+# Verificar la duración del video final con bifurcación
+if final_video > 00:10:00 {
+  print "El video es bastante largo."
+} else {
+  print "El video tiene una duración adecuada."
+}
+# Bucle for tipo python
+time j = 0
+for i in 1..10 {
+  final_video = final_video + padding[00:j:00::00:i:00]
+  j = i
+}
+# Reproducir el video final
+play final_video

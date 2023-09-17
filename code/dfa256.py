@@ -11,7 +11,7 @@ class DFA:
       self.final = -1
 
     def is_final(self):
-      return self.final > 0
+      return self.final != -1
 
     def set_type(self, type=-1):
       self.final = type
@@ -24,13 +24,13 @@ class DFA:
           end = ord(end)
           assert(start <= end)
           for char_code in range(start, end + 1):
-            self.transitions[chr(char_code)] = st_end
+            self.transitions[char_code] = st_end
         else:
-          self.transitions[symbol] = st_end
+          self.transitions[ord(symbol)] = st_end
 
     def next(self, symbol):
-      if symbol in self.transitions:
-        return self.transitions[symbol]
+      if ord(symbol) in self.transitions:
+        return self.transitions[ord(symbol)]
       return None
 
     def info(self):
@@ -46,7 +46,7 @@ class DFA:
       self.states[st].set_type(token)
 
     for st_from, symbols, st_end in transitions:
-      self.states[st_from].set_transition(list(symbols.split('¦')), st_end)
+      self.states[st_from].set_transition(list(symbols.split('\|')), st_end)
 
   def reset(self):
     self.current = self.states[0]
