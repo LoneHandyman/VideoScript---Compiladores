@@ -1,0 +1,8 @@
+#Este código debe funcionar bien para el escaner
+time j = 0
+video final_video = "D://MyVideos/memes2023.mpeg4"
+
+for i in 1..5 {
+  final_video = final_video + (final_video[0:j:0::0:i:0]) .x 1,5
+  j = i
+}

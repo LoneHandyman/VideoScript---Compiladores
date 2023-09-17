@@ -2,6 +2,7 @@ from dfa256 import DFA
 from enum import Enum
 
 class Scanner:
+
   class Token(Enum):
   #Palabras reservadas (tipos, bifurcadores, for, etc)
     TVIDEO = 1
@@ -46,14 +47,17 @@ class Scanner:
   #Literales
     STRING = 34
     TIME = 35
+    DECIMAL = 36
 
+  #Otros
+    WHITE_SPACE = 37
 
   def __init__(self, code):
-    self.dfa = self.build_automata()
+    self.dfa, self.reserved_words = self.build_lex()
     self.seekp = -1
-    self.code = code
+    self.code = code + '$'
 
-  def build_automata(self):
+  def build_lex(self):
     T = self.Token
     final_states = [(2, T.STRING), (3, T.TIME), (4, T.TIME), (5, T.ID), (6, T.ASSIGN),
                     (7, T.EQUALITY), (8, T.LESS_THAN), (9, T.LESS_EQ_THAN), (10, T.MORE_THAN),
@@ -61,7 +65,7 @@ class Scanner:
                     (17, T.TIMESTAMP_SEP), (18, T.VIDEO_SLICE), (19, T.OPEN_BRACE),
                     (20, T.CLOSED_BRACE), (21, T.OR_BRACKET), (22, T.CR_BRACKET),
                     (23, T.CONCAT), (24, T.REPEAT), (25, T.OS_BRACKET), (26, T.CS_BRACKET),
-                    (27, T.JUMP_LINE)]
+                    (27, T.JUMP_LINE), (29, T.DECIMAL), (30, T.DECIMAL), (31, T.WHITE_SPACE)]
 
     dfa_transitions = {(0, '"', 1), (0, '0', 3), (0, '1..9', 4),
                        (0, 'a..z\|A..Z\|_', 5), (0, '=', 6),
@@ -69,11 +73,17 @@ class Scanner:
                        (0, '.', 14), (0, ':', 17), (0, '{', 19),
                        (0, '}', 20), (0, '(', 21), (0, ')', 22),
                        (0, '+', 23), (0, '*', 24), (0, '[', 25),
-                       (0, ']', 26), (0, '\n', 27), (1, ' ..■', 1),
+                       (0, ']', 26), (0, '\n', 27), (1, ' \|!\|#..■', 1),
                        (1, '"', 2), (4, '0..9', 4), (5, '0..9\|a..z\|A..Z\|_', 5),
-                       (12, '=', 13), (14, '.', 15), (14, 'x', 16)}
+                       (12, '=', 13), (14, '.', 15), (14, 'x', 16),
+                       (17, ':', 18), (3, ',', 28), (4, ',', 28), (28, '0..9', 29), 
+                       (29, '0..9', 30), (0, ' ', 31)}
+    
+    reserved_words = {'video': T.TVIDEO, 'time': T.TTIME, 'print': T.PRINT, 'play': T.PLAY,
+                      'if': T.IF, 'else': T.ELSE, 'for': T.FOR, 'in': T.IN, 'and': T.AND,
+                      'or': T.OR, 'xor': T.XOR, 'not': T.NOT}
 
-    return DFA(28, final_states, dfa_transitions)
+    return DFA(32, final_states, dfa_transitions), reserved_words
 
   def getchar(self):
     self.seekp += 1
@@ -92,47 +102,46 @@ class Scanner:
   def backchar(self):
     if self.seekp != -1:
       self.seekp -= 1
-
-  def eof(self):
-    return self.seekp == len(self.code)
   
   def scan(self):
     tokens = []
     errors = []
     lexeme = ''
     line = 1
-    
-    while not self.eof():
+    chcount = 0
+    while self.peekchar():
       next_char = self.getchar()
       if next_char is not None:
         if next_char == '#':
           while self.getchar() != '\n':
             pass
           line += 1
+          chcount = 0
           continue
 
-        if next_char == '\n':
-          line += 1
-
         result = self.dfa.read(next_char)
-        lexeme += next_char
+        if result == 0:
+          lexeme += next_char
 
-        if result == -1:
-          if lexeme != ' ':
-            errors.append((lexeme, f'({line}:{self.seekp})'))
+        elif result == -1:
+          errors.append((lexeme, f'({line}:{chcount})'))
+          if len(lexeme) and lexeme[-1] == '\n':
+            line += 1
+            chcount = 0
           lexeme = ''
+          self.dfa.reset()
         else:
-          if result != 0:
-            tokens.append((lexeme[:-1], result))
-            lexeme = ''
-            self.backchar()
-    return tokens, errors
-  
-with open("fine.txt", "r") as archivo:
-  code_body = archivo.read()
-
-scanner = Scanner(code_body)
-tokens, errors = scanner.scan()
-print(tokens)
-print(tokens[-1])
-print(errors)
+          #Renombrar los tokens ids a palabras reservadas si lo requieren
+          if result == self.Token.ID:
+            if lexeme in self.reserved_words:
+              result = self.reserved_words[lexeme]
+          if result != self.Token.WHITE_SPACE:
+            tokens.append((lexeme, result, f'({line}:{chcount})'))
+          if result == self.Token.JUMP_LINE:
+            line += 1
+            chcount = 0
+          lexeme = ''
+          self.backchar()
+          chcount -= 1
+      chcount += 1
+    return tokens, errors[:-1]
