@@ -1,3 +1,10 @@
+#comentario de relleno
+"
 Hola como estas?"
-h = 5
-j = 0
+time h = 5
+
+time j = 0
+for i in 1.10 {
+  final_video = final_video - padding[0:j:0::0:i:0]
+  j = i
+}

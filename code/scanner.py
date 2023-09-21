@@ -100,23 +100,22 @@ class Scanner:
     return peekp
   
   def backchar(self):
-    if self.seekp != -1:
-      self.seekp -= 1
+    self.seekp = max(-1, self.seekp - 1)
   
   def scan(self):
     tokens = []
     errors = []
     lexeme = ''
     line = 1
-    chcount = 0
-    while self.peekchar():
+    chcount = -1
+    while self.peekchar() is not None:
       next_char = self.getchar()
+      chcount += 1
       if next_char is not None:
         if next_char == '#':
-          while self.getchar() != '\n':
-            pass
-          line += 1
-          chcount = 0
+          while self.peekchar() != '\n':
+            self.getchar()
+            chcount += 1
           continue
 
         result = self.dfa.read(next_char)
@@ -124,24 +123,32 @@ class Scanner:
           lexeme += next_char
 
         elif result == -1:
-          errors.append((lexeme, f'({line}:{chcount})'))
-          if len(lexeme) and lexeme[-1] == '\n':
-            line += 1
-            chcount = 0
-          lexeme = ''
+          errors.append((lexeme + next_char, f'({line}:{chcount - len(lexeme)})'))
           self.dfa.reset()
+          chcount -= 1
+          self.backchar()
+          lexeme = ''
+          while self.peekchar():
+            next_char = self.getchar()
+            chcount += 1
+            panic = self.dfa.read(next_char)
+            if panic == 0:
+              lexeme += next_char
+              break
+          continue
+
         else:
           #Renombrar los tokens ids a palabras reservadas si lo requieren
           if result == self.Token.ID:
             if lexeme in self.reserved_words:
               result = self.reserved_words[lexeme]
+          chcount -= 1
+          self.backchar()
           if result != self.Token.WHITE_SPACE:
-            tokens.append((lexeme, result, f'({line}:{chcount})'))
+            tokens.append((lexeme, result, f'({line}:{chcount - len(lexeme) + 1})'))
+          lexeme = ''
           if result == self.Token.JUMP_LINE:
             line += 1
-            chcount = 0
-          lexeme = ''
-          self.backchar()
-          chcount -= 1
-      chcount += 1
+            chcount = -1
+
     return tokens, errors[:-1]

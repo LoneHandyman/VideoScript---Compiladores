@@ -13,7 +13,7 @@ def compile(file):
   if len(errors) > 0:
     print("INFO SCAN - Compilation failure, errors found.")
     for error in errors:
-      print(f'\tERROR [ {error[0]} ] at {error[1]}.')
+      print(f'\tERROR [ {repr(error[0])} ] at {error[1]}.')
   else:
     print("INFO SCAN - Finished without errors.")
 
