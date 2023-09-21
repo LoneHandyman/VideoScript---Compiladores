@@ -1,6 +1,6 @@
 #comentario de relleno
-"
 Hola como estas?"
+"abcd\"e"
 time h = 5
 
 time j = 0

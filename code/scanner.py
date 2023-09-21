@@ -51,6 +51,7 @@ class Scanner:
 
   #Otros
     WHITE_SPACE = 37
+    TABULATION = 38
 
   def __init__(self, code):
     self.dfa, self.reserved_words = self.build_lex()
@@ -65,7 +66,8 @@ class Scanner:
                     (17, T.TIMESTAMP_SEP), (18, T.VIDEO_SLICE), (19, T.OPEN_BRACE),
                     (20, T.CLOSED_BRACE), (21, T.OR_BRACKET), (22, T.CR_BRACKET),
                     (23, T.CONCAT), (24, T.REPEAT), (25, T.OS_BRACKET), (26, T.CS_BRACKET),
-                    (27, T.JUMP_LINE), (29, T.DECIMAL), (30, T.DECIMAL), (31, T.WHITE_SPACE)]
+                    (27, T.JUMP_LINE), (29, T.DECIMAL), (30, T.DECIMAL), 
+                    (32, T.WHITE_SPACE), (33, T.TABULATION)]
 
     dfa_transitions = {(0, '"', 1), (0, '0', 3), (0, '1..9', 4),
                        (0, 'a..z\|A..Z\|_', 5), (0, '=', 6),
@@ -73,17 +75,18 @@ class Scanner:
                        (0, '.', 14), (0, ':', 17), (0, '{', 19),
                        (0, '}', 20), (0, '(', 21), (0, ')', 22),
                        (0, '+', 23), (0, '*', 24), (0, '[', 25),
-                       (0, ']', 26), (0, '\n', 27), (1, ' \|!\|#..■', 1),
+                       (0, ']', 26), (0, '\n', 27), (1, ' ..!\|#..[\|]..■', 1),
                        (1, '"', 2), (4, '0..9', 4), (5, '0..9\|a..z\|A..Z\|_', 5),
                        (12, '=', 13), (14, '.', 15), (14, 'x', 16),
                        (17, ':', 18), (3, ',', 28), (4, ',', 28), (28, '0..9', 29), 
-                       (29, '0..9', 30), (0, ' ', 31)}
+                       (29, '0..9', 30), (1, '\\', 31), (31, ' ..■', 1), 
+                       (0, ' ', 32), (0, '\t', 33)}
     
     reserved_words = {'video': T.TVIDEO, 'time': T.TTIME, 'print': T.PRINT, 'play': T.PLAY,
                       'if': T.IF, 'else': T.ELSE, 'for': T.FOR, 'in': T.IN, 'and': T.AND,
                       'or': T.OR, 'xor': T.XOR, 'not': T.NOT}
 
-    return DFA(32, final_states, dfa_transitions), reserved_words
+    return DFA(34, final_states, dfa_transitions), reserved_words
 
   def getchar(self):
     self.seekp += 1
@@ -144,7 +147,7 @@ class Scanner:
               result = self.reserved_words[lexeme]
           chcount -= 1
           self.backchar()
-          if result != self.Token.WHITE_SPACE:
+          if result != self.Token.WHITE_SPACE and result != self.Token.TABULATION:
             tokens.append((lexeme, result, f'({line}:{chcount - len(lexeme) + 1})'))
           lexeme = ''
           if result == self.Token.JUMP_LINE:
