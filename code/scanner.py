@@ -52,6 +52,7 @@ class Scanner:
   #Otros
     WHITE_SPACE = 37
     TABULATION = 38
+    COMMENT = 39
 
   def __init__(self, code):
     self.dfa, self.reserved_words = self.build_lex()
@@ -67,7 +68,7 @@ class Scanner:
                     (20, T.CLOSED_BRACE), (21, T.OR_BRACKET), (22, T.CR_BRACKET),
                     (23, T.CONCAT), (24, T.REPEAT), (25, T.OS_BRACKET), (26, T.CS_BRACKET),
                     (27, T.JUMP_LINE), (29, T.DECIMAL), (30, T.DECIMAL), 
-                    (32, T.WHITE_SPACE), (33, T.TABULATION)]
+                    (32, T.WHITE_SPACE), (33, T.TABULATION), (34, T.COMMENT)]
 
     dfa_transitions = {(0, '"', 1), (0, '0', 3), (0, '1..9', 4),
                        (0, 'a..z\|A..Z\|_', 5), (0, '=', 6),
@@ -80,13 +81,13 @@ class Scanner:
                        (12, '=', 13), (14, '.', 15), (14, 'x', 16),
                        (17, ':', 18), (3, ',', 28), (4, ',', 28), (28, '0..9', 29), 
                        (29, '0..9', 30), (1, '\\', 31), (31, ' ..■', 1), 
-                       (0, ' ', 32), (0, '\t', 33)}
+                       (0, ' ', 32), (0, '\t', 33), (0, '#', 34), (34, ' ..■', 34)}
     
     reserved_words = {'video': T.TVIDEO, 'time': T.TTIME, 'print': T.PRINT, 'play': T.PLAY,
                       'if': T.IF, 'else': T.ELSE, 'for': T.FOR, 'in': T.IN, 'and': T.AND,
                       'or': T.OR, 'xor': T.XOR, 'not': T.NOT}
 
-    return DFA(34, final_states, dfa_transitions), reserved_words
+    return DFA(35, final_states, dfa_transitions), reserved_words
 
   def getchar(self):
     self.seekp += 1
@@ -106,52 +107,47 @@ class Scanner:
     self.seekp = max(-1, self.seekp - 1)
   
   def scan(self):
+    banned_tokens = [self.Token.WHITE_SPACE, self.Token.TABULATION, self.Token.COMMENT]
     tokens = []
     errors = []
     lexeme = ''
     line = 1
     chcount = -1
-    while self.peekchar() is not None:
+    while self.peekchar():
       next_char = self.getchar()
       chcount += 1
-      if next_char is not None:
-        if next_char == '#':
-          while self.peekchar() != '\n':
-            self.getchar()
-            chcount += 1
-          continue
 
-        result = self.dfa.read(next_char)
-        if result == 0:
-          lexeme += next_char
+      result = self.dfa.read(next_char)
+      if result == 0:
+        lexeme += next_char
 
-        elif result == -1:
-          errors.append((lexeme + next_char, f'({line}:{chcount - len(lexeme)})'))
-          self.dfa.reset()
-          chcount -= 1
-          self.backchar()
-          lexeme = ''
-          while self.peekchar():
-            next_char = self.getchar()
-            chcount += 1
-            panic = self.dfa.read(next_char)
-            if panic == 0:
-              lexeme += next_char
-              break
-          continue
+      elif result == -1:
+        errors.append((lexeme + next_char, f'({line}:{chcount - len(lexeme)})'))
+        self.dfa.reset()
+        chcount -= 1
+        self.backchar()
+        lexeme = ''
+        while self.peekchar():
+          next_char = self.getchar()
+          chcount += 1
+          panic = self.dfa.read(next_char)
+          if panic == 0:
+            lexeme += next_char
+            break
+        continue
 
-        else:
-          #Renombrar los tokens ids a palabras reservadas si lo requieren
-          if result == self.Token.ID:
-            if lexeme in self.reserved_words:
-              result = self.reserved_words[lexeme]
-          chcount -= 1
-          self.backchar()
-          if result != self.Token.WHITE_SPACE and result != self.Token.TABULATION:
-            tokens.append((lexeme, result, f'({line}:{chcount - len(lexeme) + 1})'))
-          lexeme = ''
-          if result == self.Token.JUMP_LINE:
-            line += 1
-            chcount = -1
+      else:
+        #Renombrar los tokens ids a palabras reservadas si lo requieren
+        if result == self.Token.ID:
+          if lexeme in self.reserved_words:
+            result = self.reserved_words[lexeme]
+        chcount -= 1
+        self.backchar()
+        if result not in banned_tokens:
+          tokens.append((lexeme, result, f'({line}:{chcount - len(lexeme) + 1})'))
+        lexeme = ''
+        if result == self.Token.JUMP_LINE:
+          line += 1
+          chcount = -1
 
     return tokens, errors[:-1]
