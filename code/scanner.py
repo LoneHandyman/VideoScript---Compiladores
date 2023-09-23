@@ -57,7 +57,7 @@ class Scanner:
   def __init__(self, code):
     self.dfa, self.reserved_words = self.build_lex()
     self.seekp = -1
-    self.code = code + '$'
+    self.code = code + '\0'
 
   def build_lex(self):
     T = self.Token
@@ -149,5 +149,6 @@ class Scanner:
         if result == self.Token.JUMP_LINE:
           line += 1
           chcount = -1
-
-    return tokens, errors[:-1]
+    if len(errors) and errors[-1][0] == '\0':
+      errors = errors[:-1]
+    return tokens, errors
